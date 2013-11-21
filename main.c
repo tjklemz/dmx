@@ -60,18 +60,11 @@ static void update()
         } else if(chan_val == 255) {
             PORTC |= (1<<chan);
         } else { 
+            /*
             unsigned int i;
-            for(i = 0; i < 10; ++i) {
-                if(chan_val >= 175) {
-                    _delay_us(0.0001);
-                } else if(chan_val >= 75) {
-                    _delay_us(0.001);
-                } else if(chan_val >= 25) {
-                    _delay_us(0.01);
-                } else {
-                    _delay_us(0.1);
-                }
-            }
+            for(i = 0; i < (255-chan_val); ++i)
+              _delay_us(0.001);
+            */
             PORTC ^= (1<<chan); // toggle LED
         }
     }
@@ -120,7 +113,6 @@ static void handleDMX()
     //keep collecting data for each of *our* channels (don't go past)
     if(chan_cnt >= DMX_NUM_CHANNELS) {
         //we got what we needed so just wait for DMX to loop
-        update();
         dmx_state = DMX_IDLE;
     } 
     break;
@@ -138,7 +130,7 @@ static void handleDMX()
  *******************************************************************/
 
 #define NUMBER_OF_PWMS 4    //the number of generated PWM signals
-#define PHASE_MAX 128
+#define PHASE_MAX 255
 #define WAIT_TIME 20
 
 volatile uint8_t pwms[NUMBER_OF_PWMS]; //storage unit for the pwms setting
@@ -159,24 +151,9 @@ static void setupPWM()
     MCUCR = (1<<ISC01) | (1<<ISC00);
 
     for(i = 0; i < NUMBER_OF_PWMS; i++)
-    {
         pwms[i] = 0;
-    }
 
     sei();
-}
-
-static void handlePWM()
-{
-    static uint8_t phase = 0;
-    uint8_t i;
-
-    /*for(i = 0; i < NUMBER_OF_PWMS; i++)
-    {
-        if(pwms[i] < phase) out |= (1 << i);
-    }*/
-    PORTC |= out;
-    if(phase++ == PHASE_MAX) phase = 0;
 }
 
 ISR(TIMER0_OVF_vect)	//timer 0 interrupt for the pwm core.
@@ -188,8 +165,6 @@ ISR(TIMER0_OVF_vect)	//timer 0 interrupt for the pwm core.
 
 	t = (t+1) % PHASE_MAX;
 
-	//PORTC |= (1<<1);
-
 	for(i = 0; i < NUMBER_OF_PWMS; i++)
 	{
 		if(pwms[i] > desired_pwms[i]) pwms[i]--;
@@ -198,6 +173,9 @@ ISR(TIMER0_OVF_vect)	//timer 0 interrupt for the pwm core.
 		{
 			if(wait_time[i] == 0)
 			{
+        uint8_t j;
+        for(j = 0; j < 4; ++j)
+          PORTC ^= (1<<j);
 				wait_time[i] = WAIT_TIME;
 				desired_pwms[i] = dmx_data[i];
 			}
@@ -223,7 +201,6 @@ int main()
     PORTC |= 1;
         
     for(;;) {
-        handlePWM();
         handleDMX();
     }
  

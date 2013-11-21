@@ -81,6 +81,7 @@ static void handleDMX()
 
     switch(dmx_state) {
     case DMX_IDLE:
+    PORTC &= ~1;
     if(status & (1<<FE)) {
         dmx_cur_addr = 0;
         dmx_state = DMX_BREAK;
@@ -88,6 +89,7 @@ static void handleDMX()
     break;
 
     case DMX_BREAK:
+    PORTC &= ~1;
     if(data == 0) {
         dmx_state = DMX_START;
     } else {
@@ -102,6 +104,7 @@ static void handleDMX()
     // otherwise, just wait (we'll keep incrementing the cur addr)
     if(dmx_cur_addr == dmx_start_addr)
     {
+        PORTC |= 1;
         chan_cnt = 0;
         dmx_data[chan_cnt++] = data;
         dmx_state = DMX_RUN;
@@ -113,6 +116,7 @@ static void handleDMX()
     //keep collecting data for each of *our* channels (don't go past)
     if(chan_cnt >= DMX_NUM_CHANNELS) {
         //we got what we needed so just wait for DMX to loop
+        PORTC &= ~1;
         dmx_state = DMX_IDLE;
     } 
     break;
@@ -173,9 +177,10 @@ ISR(TIMER0_OVF_vect)	//timer 0 interrupt for the pwm core.
 		{
 			if(wait_time[i] == 0)
 			{
-        uint8_t j;
+        /*uint8_t j;
         for(j = 0; j < 4; ++j)
           PORTC ^= (1<<j);
+          */
 				wait_time[i] = WAIT_TIME;
 				desired_pwms[i] = dmx_data[i];
 			}
@@ -198,7 +203,7 @@ int main()
     setupDMX();
     setupPWM();
 
-    PORTC |= 1;
+    //PORTC |= 1;
         
     for(;;) {
         handleDMX();
